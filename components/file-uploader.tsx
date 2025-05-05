@@ -11,7 +11,7 @@ import Image from "next/image"
 interface FileUploaderProps {
   files: FileList | null
   setFiles: (files: FileList | null) => void
-  fileInputRef: React.RefObject<HTMLInputElement>
+  fileInputRef: React.RefObject<HTMLInputElement | null>
 }
 
 export function FileUploader({ files, setFiles, fileInputRef }: FileUploaderProps) {

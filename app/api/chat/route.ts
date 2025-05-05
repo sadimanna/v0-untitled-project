@@ -8,9 +8,13 @@ export async function POST(req: Request) {
   try {
     const { messages } = await req.json()
 
-    // Debug: Log the incoming messages to see what's being received
-    console.log("API received messages:", JSON.stringify(messages, null, 2))
+    // Check if the request is being sent from a "Send" button click
+    // const isSendButtonClicked = req.headers.get('x-send-button-clicked') === 'true'
 
+    // if (isSendButtonClicked) {
+    // Debug: Log the incoming messages to see what's being received
+    console.log("API route called - form submitted with messages:", JSON.stringify(messages, null, 2))
+    // }
     // Check if any message has attachments
     const hasAttachments = messages.some(
       (message: any) => message.experimental_attachments && message.experimental_attachments.length > 0,
@@ -49,7 +53,7 @@ export async function POST(req: Request) {
 
     return result.toDataStreamResponse({
       // Make sure we're sending attachments back to the client
-      sendAttachments: true,
+      // sendAttachments: true,
     })
   } catch (error) {
     console.error("Error in chat API:", error)

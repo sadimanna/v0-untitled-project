@@ -21,7 +21,12 @@ export default function Home() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const chatAreaRef = useRef<HTMLDivElement>(null)
 
-  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat()
+  const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
+    api: "/api/chat",
+    id: "medical-assistant",
+    // This prevents the API from being called on every keystroke
+    mode: "manual",
+  })
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -48,12 +53,13 @@ export default function Home() {
     // Submit the form with files and/or text
     handleSubmit(e, {
       experimental_attachments: filesToSend || undefined,
-      options: {
-        body: {
-          // Override the input with our modified version
-          input: currentInput,
-        },
+      // options: {
+      body: {
+        // Override the input with our modified version
+        input: currentInput,
       },
+      // },
+      allowEmptySubmit: true,
     })
 
     // Clear files immediately after sending
