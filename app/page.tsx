@@ -29,9 +29,31 @@ export default function Home() {
     // Allow submission if there are files, even if there's no text
     if (!input.trim() && (!files || files.length === 0)) return
 
+    console.log("Submitting form with files:", files ? Array.from(files).map((f) => f.name) : "none")
+
+    // Create a copy of the files before clearing them
+    const filesToSend = files
+
+    // If there's no text but there are files, set a placeholder text
+    // This ensures the message is properly created and displayed
+    let currentInput = input
+    if (!input.trim() && files && files.length > 0) {
+      // Set a non-visible placeholder for file-only messages
+      currentInput = " " // Space character that won't be visible but ensures message creation
+
+      // Alternative approach: explicitly set a placeholder text
+      // currentInput = `[File${files.length > 1 ? 's' : ''} uploaded]`;
+    }
+
     // Submit the form with files and/or text
     handleSubmit(e, {
-      experimental_attachments: files || undefined,
+      experimental_attachments: filesToSend || undefined,
+      options: {
+        body: {
+          // Override the input with our modified version
+          input: currentInput,
+        },
+      },
     })
 
     // Clear files immediately after sending

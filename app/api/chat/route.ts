@@ -16,6 +16,10 @@ export async function POST(req: Request) {
       (message: any) => message.experimental_attachments && message.experimental_attachments.length > 0,
     )
 
+    if (hasAttachments) {
+      console.log("Message contains attachments")
+    }
+
     // Use GPT-4o for multi-modal capabilities
     const result = streamText({
       model: openai("gpt-4o"),
