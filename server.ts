@@ -27,9 +27,11 @@ const AI_PROVIDER = (process.env.AI_PROVIDER || "openai").toLowerCase() as AIPro
 let aiService: OpenAIService | GrokService
 
 if (AI_PROVIDER === "grok") {
+  console.log("Using Grok AI provider")
   aiService = new GrokService(process.env.GROK_API_KEY || "")
 } else {
   // Default to OpenAI
+  console.log("Using OpenAI provider")
   aiService = new OpenAIService(process.env.OPENAI_API_KEY || "")
 }
 
@@ -144,14 +146,29 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
     res.setHeader("Connection", "keep-alive")
 
     try {
-      // Get streaming response from AI provider
-      const stream = await aiService.createChatCompletion(apiMessages)
+      // If Grok is selected but we're in fallback mode, use OpenAI instead
+      if (AI_PROVIDER === "grok" && process.env.FALLBACK_TO_OPENAI === "true") {
+        console.log("Falling back to OpenAI from Grok")
+        const openaiService = new OpenAIService(process.env.OPENAI_API_KEY || "")
+        const stream = await openaiService.createChatCompletion(apiMessages)
 
-      // Stream the response
-      for await (const chunk of stream) {
-        const content = aiService.extractContentFromChunk(chunk)
-        if (content) {
-          res.write(`data: ${JSON.stringify({ content })}\n\n`)
+        // Stream the response
+        for await (const chunk of stream) {
+          const content = openaiService.extractContentFromChunk(chunk)
+          if (content) {
+            res.write(`data: ${JSON.stringify({ content })}\n\n`)
+          }
+        }
+      } else {
+        // Use the selected provider
+        const stream = await aiService.createChatCompletion(apiMessages)
+
+        // Stream the response
+        for await (const chunk of stream) {
+          const content = aiService.extractContentFromChunk(chunk)
+          if (content) {
+            res.write(`data: ${JSON.stringify({ content })}\n\n`)
+          }
         }
       }
 

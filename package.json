@@ -83,15 +83,13 @@
     "path": "latest",
     "langchain": "latest",
     "openai": "latest",
-    "@xai-org/xai-js": "latest",
-    "@anthropic-ai/sdk": "latest",
-    "deepseek-api": "latest",
+    "@ai-sdk/react": "latest",
+    "node-fetch": "latest",
     "express": "latest",
     "multer": "latest",
     "cors": "latest",
     "file-type": "latest",
-    "dotenv": "latest",
-    "@ai-sdk/react": "latest"
+    "dotenv": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",
