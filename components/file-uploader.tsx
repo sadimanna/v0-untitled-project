@@ -5,17 +5,20 @@ import type React from "react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { FileText, ImageIcon, FileSpreadsheet, Upload, X } from "lucide-react"
+import { FileText, ImageIcon, FileSpreadsheet, Upload, X, AlertCircle } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import Image from "next/image"
 
 interface FileUploaderProps {
   files: FileList | null
   setFiles: (files: FileList | null) => void
   fileInputRef: React.RefObject<HTMLInputElement | null>
+  maxFileSize?: string
 }
 
-export function FileUploader({ files, setFiles, fileInputRef }: FileUploaderProps) {
+export function FileUploader({ files, setFiles, fileInputRef, maxFileSize = "10 MB" }: FileUploaderProps) {
   const [dragActive, setDragActive] = useState(false)
+  const [sizeError, setSizeError] = useState<string | null>(null)
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault()
@@ -34,15 +37,33 @@ export function FileUploader({ files, setFiles, fileInputRef }: FileUploaderProp
     setDragActive(false)
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFiles(e.dataTransfer.files)
+      validateAndSetFiles(e.dataTransfer.files)
     }
   }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault()
     if (e.target.files && e.target.files.length > 0) {
-      setFiles(e.target.files)
+      validateAndSetFiles(e.target.files)
     }
+  }
+
+  const validateAndSetFiles = (newFiles: FileList) => {
+    setSizeError(null)
+
+    // Check for oversized files
+    for (let i = 0; i < newFiles.length; i++) {
+      const file = newFiles[i]
+      // 10MB in bytes (adjust if your maxFileSize is different)
+      const maxBytes = 10 * 1024 * 1024
+
+      if (file.size > maxBytes) {
+        setSizeError(`File "${file.name}" exceeds the maximum size of ${maxFileSize}`)
+        return
+      }
+    }
+
+    setFiles(newFiles)
   }
 
   const handleRemoveFile = (index: number) => {
@@ -71,6 +92,13 @@ export function FileUploader({ files, setFiles, fileInputRef }: FileUploaderProp
 
   return (
     <div className="space-y-4">
+      {sizeError && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>{sizeError}</AlertDescription>
+        </Alert>
+      )}
+
       <div
         className={`border-2 border-dashed rounded-lg p-6 text-center ${
           dragActive ? "border-blue-500 bg-blue-50" : "border-gray-300"
@@ -95,7 +123,9 @@ export function FileUploader({ files, setFiles, fileInputRef }: FileUploaderProp
         <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
           Select Files
         </Button>
-        <p className="text-xs text-gray-500 mt-2">Supported formats: Images, PDFs, and CSV files</p>
+        <p className="text-xs text-gray-500 mt-2">
+          Supported formats: Images, PDFs, and CSV files (Max size: {maxFileSize})
+        </p>
       </div>
 
       {files && files.length > 0 && (

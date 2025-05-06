@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { useChat } from "@ai-sdk/react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -20,6 +20,7 @@ export default function Home() {
   const [dragActive, setDragActive] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const chatAreaRef = useRef<HTMLDivElement>(null)
+  const [maxFileSize, setMaxFileSize] = useState<string>("10 MB")
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
     api: "/api/chat",
@@ -95,6 +96,22 @@ export default function Home() {
       // Attach the files
       setFiles(e.dataTransfer.files)
     }
+  }, [])
+
+  // Fetch config from backend
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001"
+        const response = await fetch(`${backendUrl}/api/config`)
+        const data = await response.json()
+        setMaxFileSize(`${data.maxFileSizeMB} MB`)
+      } catch (error) {
+        console.error("Error fetching config:", error)
+      }
+    }
+
+    fetchConfig()
   }, [])
 
   return (
@@ -244,7 +261,13 @@ export default function Home() {
         </Card>
       </div>
 
-      <FileUploadDialog open={fileDialogOpen} onOpenChange={setFileDialogOpen} files={files} setFiles={setFiles} />
+      <FileUploadDialog
+        open={fileDialogOpen}
+        onOpenChange={setFileDialogOpen}
+        files={files}
+        setFiles={setFiles}
+        maxFileSize={maxFileSize}
+      />
     </main>
   )
 }

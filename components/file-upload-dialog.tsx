@@ -13,58 +13,59 @@ interface FileUploadDialogProps {
   files: FileList | null
   setFiles: (files: FileList | null) => void
   onUpload?: (files: FileList) => void
+  maxFileSize?: string
 }
 
-
-export function FileUploadDialog({ open, onOpenChange, files, setFiles, onUpload }: FileUploadDialogProps) {
+export function FileUploadDialog({
+  open,
+  onOpenChange,
+  files,
+  setFiles,
+  onUpload,
+  maxFileSize = "10 MB",
+}: FileUploadDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState(0)
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null)
 
   // Function to handle the upload process
   const handleUpload = async () => {
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) return
 
-    setIsUploading(true);
-    setUploadProgress(0);
-    setError(null);
+    setIsUploading(true)
+    setUploadProgress(0)
+    setError(null)
 
     try {
       if (onUpload) {
-        await onUpload(files);
+        await onUpload(files)
       } else {
         // Simulate upload progress
-        const totalFiles = files.length;
+        const totalFiles = files.length
         const progressInterval = setInterval(() => {
           setUploadProgress((prev) => {
-            const newProgress = prev + Math.random() * 15;
+            const newProgress = prev + Math.random() * 15
             if (newProgress >= 100) {
-              clearInterval(progressInterval);
+              clearInterval(progressInterval)
 
               // Simulate completion delay
               setTimeout(() => {
-                setIsUploading(false);
-                onOpenChange(false); // Close dialog when complete
-              }, 500);
+                setIsUploading(false)
+                onOpenChange(false) // Close dialog when complete
+              }, 500)
 
-              return 100;
+              return 100
             }
-            return newProgress;
-          });
-        }, 300);
+            return newProgress
+          })
+        }, 300)
       }
     } catch (error: any) {
-      setError(error.message);
-      setIsUploading(false);
+      setError(error.message)
+      setIsUploading(false)
     }
-  };
-
-  const handleCancel = () => {
-    // Add logic to cancel ongoing upload processes
-    setIsUploading(false);
-    onOpenChange(false);
-  };
+  }
 
   return (
     <Dialog
@@ -80,7 +81,7 @@ export function FileUploadDialog({ open, onOpenChange, files, setFiles, onUpload
           <DialogTitle>Upload Files</DialogTitle>
         </DialogHeader>
         <div className="py-4">
-          <FileUploader files={files} setFiles={setFiles} fileInputRef={fileInputRef} />
+          <FileUploader files={files} setFiles={setFiles} fileInputRef={fileInputRef} maxFileSize={maxFileSize} />
         </div>
 
         {isUploading && (

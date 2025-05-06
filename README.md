@@ -1,30 +1,96 @@
-# Medical chatbot UI
+# Multi-Model Medical Assistant Backend
 
-*Automatically synced with your [v0.dev](https://v0.dev) deployments*
+This is the backend server for the Medical Assistant AI chatbot. It handles processing text messages, images, PDFs, and CSV files, sending them to various AI models, and returning the responses to the frontend.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com/sadimannas-projects/v0-medical-chatbot-ui-ei)
-[![Built with v0](https://img.shields.io/badge/Built%20with-v0.dev-black?style=for-the-badge)](https://v0.dev/chat/projects/00TkxyS8Lbd)
+## Features
 
-## Overview
+- Processes text messages from the frontend
+- Handles image uploads and sends them to AI models
+- Extracts text from PDF files for analysis
+- Parses CSV data for health information analysis
+- Streams AI responses back to the frontend
+- Supports multiple AI providers:
+  - OpenAI (GPT-4o)
+  - Grok (Grok-2)
+  - Anthropic (Claude)
+  - DeepSeek (DeepSeek Reasoner)
 
-This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
-Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
+## Setup
 
-## Deployment
+1. Clone the repository
+2. Install dependencies:
+   \`\`\`
+   npm install
+   \`\`\`
+3. Create a `.env` file with the following variables:
+   \`\`\`
+   # Choose your AI provider
+   AI_PROVIDER=openai  # Options: openai, grok, anthropic, deepseek
+   
+   # API Keys (add the ones you need)
+   OPENAI_API_KEY=your_openai_api_key_here
+   GROK_API_KEY=your_grok_api_key_here
+   ANTHROPIC_API_KEY=your_anthropic_api_key_here
+   DEEPSEEK_API_KEY=your_deepseek_api_key_here
+   
+   # Server Configuration
+   PORT=3001
+   FRONTEND_URL=http://localhost:3000
+   \`\`\`
+4. Build the project:
+   \`\`\`
+   npm run build
+   \`\`\`
+5. Start the server:
+   \`\`\`
+   npm start
+   \`\`\`
 
-Your project is live at:
+## API Endpoints
 
-**[https://vercel.com/sadimannas-projects/v0-medical-chatbot-ui-ei](https://vercel.com/sadimannas-projects/v0-medical-chatbot-ui-ei)**
+### POST /api/chat
 
-## Build your app
+Main endpoint for chat functionality. Accepts:
+- Text messages
+- Image files
+- PDF files
+- CSV files
 
-Continue building your app on:
+Returns a streamed response from the selected AI model.
 
-**[https://v0.dev/chat/projects/00TkxyS8Lbd](https://v0.dev/chat/projects/00TkxyS8Lbd)**
+### GET /api/provider
 
-## How It Works
+Returns information about the currently configured AI provider and model.
 
-1. Create and modify your project using [v0.dev](https://v0.dev)
-2. Deploy your chats from the v0 interface
-3. Changes are automatically pushed to this repository
-4. Vercel deploys the latest version from this repository
+### GET /health
+
+Health check endpoint to verify the server is running.
+
+## Switching AI Providers
+
+To switch between AI providers, simply change the `AI_PROVIDER` environment variable to one of:
+- `openai` (default)
+- `grok`
+- `anthropic`
+- `deepseek`
+
+Make sure you have the corresponding API key set in your environment variables.
+
+## Frontend Integration
+
+Update your frontend to send requests to this backend server instead of directly to the AI provider. See the `frontend-integration.ts` file for guidance.
+
+## Environment Variables
+
+- `AI_PROVIDER`: The AI provider to use (openai, grok, anthropic, deepseek)
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `GROK_API_KEY`: Your Grok API key
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
+- `DEEPSEEK_API_KEY`: Your DeepSeek API key
+- `PORT`: The port the server will run on (default: 3001)
+- `FRONTEND_URL`: The URL of your frontend for CORS configuration
+- `MAX_FILE_SIZE`: Maximum file size in bytes (default: 10MB)
+
+## License
+
+MIT
