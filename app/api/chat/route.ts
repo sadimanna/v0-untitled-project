@@ -1,59 +1,43 @@
-import { openai } from "@ai-sdk/openai"
-import { streamText } from "ai"
-
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30
 
 export async function POST(req: Request) {
   try {
-    const { messages } = await req.json()
+    const formData = await req.formData()
+    const messagesJson = formData.get("messages") as string
+    const messages = messagesJson ? JSON.parse(messagesJson) : []
+    const files = formData.getAll("files") as File[]
 
-    // Check if the request is being sent from a "Send" button click
-    // const isSendButtonClicked = req.headers.get('x-send-button-clicked') === 'true'
+    console.log("API received messages:", JSON.stringify(messages, null, 2))
+    console.log("Files received:", files.length)
 
-    // if (isSendButtonClicked) {
-    // Debug: Log the incoming messages to see what's being received
-    console.log("API route called - form submitted with messages:", JSON.stringify(messages, null, 2))
-    // }
-    // Check if any message has attachments
-    const hasAttachments = messages.some(
-      (message: any) => message.experimental_attachments && message.experimental_attachments.length > 0,
-    )
+    // Process and prepare form data for the backend
+    const backendFormData = new FormData()
 
-    if (hasAttachments) {
-      console.log("Message contains attachments")
+    // Add messages as JSON
+    backendFormData.append("messages", JSON.stringify(messages))
+
+    // Add any file attachments
+    if (files.length > 0) {
+      for (const file of files) {
+        backendFormData.append("files", file)
+      }
     }
 
-    // Use GPT-4o for multi-modal capabilities
-    const result = streamText({
-      model: openai("gpt-4o"),
-      messages,
-      system: `You are MediAssist AI, a helpful medical assistant chatbot. 
-      You can analyze medical images, health data from CSV files, and medical documents from PDFs.
-      
-      When analyzing images:
-      - Describe what you see in the image
-      - Identify potential medical concerns if visible
-      - Provide general information related to what's shown
-      - Always clarify you're not providing a diagnosis
-      
-      When analyzing CSV data:
-      - Summarize the data structure
-      - Identify key trends or patterns
-      - Explain the medical relevance of the data
-      
-      When analyzing PDFs:
-      - Summarize the key information
-      - Explain medical terminology in simple terms
-      - Highlight important points
-      
-      Always remind users that you're not a replacement for professional medical advice.
-      Be empathetic, clear, and helpful in your responses.`,
+    // Call your backend server
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:3001"
+    const response = await fetch(`${backendUrl}/api/chat`, {
+      method: "POST",
+      body: backendFormData,
     })
 
-    return result.toDataStreamResponse({
-      // Make sure we're sending attachments back to the client
-      // sendAttachments: true,
+    // Return the streamed response
+    return new Response(response.body, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     })
   } catch (error) {
     console.error("Error in chat API:", error)

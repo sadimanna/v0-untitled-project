@@ -22,13 +22,19 @@ dotenv.config()
 
 // Get AI provider from environment variables
 const AI_PROVIDER = (process.env.AI_PROVIDER || "openai").toLowerCase() as AIProvider
+console.log(`AI Provider set to: ${AI_PROVIDER}`)
 
 // Initialize AI service based on provider
 let aiService: OpenAIService | GrokService
 
 if (AI_PROVIDER === "grok") {
   console.log("Using Grok AI provider")
-  aiService = new GrokService(process.env.GROK_API_KEY || "")
+  // Use XAI_API_KEY for Grok (as per their documentation)
+  const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY || ""
+  console.log(`Grok API Key length: ${apiKey.length} characters`)
+
+  // Use the vision model for image support
+  aiService = new GrokService(apiKey, "grok-2-vision-latest")
 } else {
   // Default to OpenAI
   console.log("Using OpenAI provider")
@@ -93,7 +99,7 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
     const files = req.files as Express.Multer.File[]
 
     console.log(`Using AI Provider: ${AI_PROVIDER}`)
-    console.log("Received chat request with messages:", messages)
+    console.log("Received chat request with messages:", JSON.stringify(messages, null, 2))
     console.log(
       "Received files:",
       files?.map((f) => f.originalname),
@@ -117,6 +123,7 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
             type: "image_url",
             image_url: {
               url: `data:${file.mimetype};base64,${base64Image}`,
+              detail: "high",
             },
           })
         } else if (file.mimetype === "application/pdf") {
@@ -139,6 +146,7 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
 
     // Prepare messages for AI API
     const apiMessages = aiService.formatMessages(messages, processedAttachments)
+    console.log("Formatted messages for API:", JSON.stringify(apiMessages, null, 2))
 
     // Set up streaming response
     res.setHeader("Content-Type", "text/event-stream")
@@ -161,20 +169,29 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
         }
       } else {
         // Use the selected provider
+        console.log(`Using ${AI_PROVIDER} for this request`)
         const stream = await aiService.createChatCompletion(apiMessages)
 
         // Stream the response
+        let chunkCount = 0
         for await (const chunk of stream) {
+          chunkCount++
+          if (chunkCount % 10 === 0) {
+            console.log(`Received ${chunkCount} chunks from ${AI_PROVIDER}`)
+          }
+
           const content = aiService.extractContentFromChunk(chunk)
           if (content) {
             res.write(`data: ${JSON.stringify({ content })}\n\n`)
           }
         }
+        console.log(`Total chunks received: ${chunkCount}`)
       }
 
       res.write("data: [DONE]\n\n")
     } catch (error: any) {
       console.error(`Error from ${AI_PROVIDER} API:`, error)
+      console.error(`Error stack:`, error.stack)
       res.write(`data: ${JSON.stringify({ error: `Error from ${AI_PROVIDER} API: ${error.message}` })}\n\n`)
       res.write("data: [DONE]\n\n")
     }
