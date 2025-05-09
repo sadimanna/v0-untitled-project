@@ -1,4 +1,4 @@
-import express from "express"
+import express, { Request, Response } from "express"
 import multer from "multer"
 import cors from "cors"
 import path from "path"
@@ -16,42 +16,48 @@ import { parseFileSize } from "./utils/file-size-parser"
 import { OpenAIService } from "./services/openai-service"
 import { GrokService } from "./services/grok-service"
 import type { AIProvider } from "./types"
+import crypto from "crypto"
 
 // Load environment variables
 dotenv.config()
+
+console.log("Starting server initialization...")
 
 // Get AI provider from environment variables
 const AI_PROVIDER = (process.env.AI_PROVIDER || "openai").toLowerCase() as AIProvider
 console.log(`AI Provider set to: ${AI_PROVIDER}`)
 
 // Initialize AI service based on provider
-let aiService: OpenAIService | GrokService
+let aiService: GrokService
 
-if (AI_PROVIDER === "grok") {
-  console.log("Using Grok AI provider")
-  // Use XAI_API_KEY for Grok (as per their documentation)
-  const apiKey = process.env.XAI_API_KEY || process.env.GROK_API_KEY || ""
-  console.log(`Grok API Key length: ${apiKey.length} characters`)
-
-  // Use the vision model for image support
-  aiService = new GrokService(apiKey, "grok-2-vision-latest")
-} else {
-  // Default to OpenAI
-  console.log("Using OpenAI provider")
-  aiService = new OpenAIService(process.env.OPENAI_API_KEY || "")
+console.log("Initializing Grok AI provider...")
+// Use XAI_API_KEY for Grok (as per their documentation)
+const apiKey = process.env.XAI_API_KEY
+if (!apiKey) {
+  console.error("XAI_API_KEY environment variable is not set")
+  process.exit(1)
 }
+console.log(`Grok API Key length: ${apiKey.length} characters`)
+
+// Use the vision model for image support
+aiService = new GrokService(apiKey, "grok-2-vision-latest")
+console.log("Grok service initialized successfully")
 
 const app = express()
-const PORT = process.env.PORT || 3001
+const PORT = 3002  // Hardcode to 3002 to avoid any confusion
+console.log(`Server will run on port: ${PORT}`)
 
 // Parse MAX_FILE_SIZE environment variable
 const MAX_FILE_SIZE = parseFileSize(process.env.MAX_FILE_SIZE || "10MB")
 console.log(`Maximum file size set to: ${MAX_FILE_SIZE} bytes (${(MAX_FILE_SIZE / (1024 * 1024)).toFixed(2)} MB)`)
 
 // Configure CORS to allow requests from your frontend
+const frontendUrl = "http://localhost:3000"  // Hardcode to 3000
+console.log(`Configuring CORS for frontend URL: ${frontendUrl}`)
+
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: frontendUrl,
     methods: ["GET", "POST"],
     allowedHeaders: ["Content-Type", "Authorization"],
   }),
@@ -61,14 +67,12 @@ app.use(express.json())
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
+  destination: (req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
     const uploadDir = createTempDirectory()
     cb(null, uploadDir)
   },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9)
-    const ext = path.extname(file.originalname)
-    cb(null, file.fieldname + "-" + uniqueSuffix + ext)
+  filename: (req: Express.Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+    cb(null, `${Date.now()}-${file.originalname}`)
   },
 })
 
@@ -93,9 +97,13 @@ const upload = multer({
 })
 
 // Main chat endpoint
-app.post("/api/chat", upload.array("files"), async (req, res) => {
+app.post("/api/chat", upload.array("files"), async (req: Request, res: Response) => {
   try {
-    const { messages } = req.body
+    // Parse messages from request body
+    const messages = typeof req.body.messages === 'string' 
+      ? JSON.parse(req.body.messages) 
+      : req.body.messages;
+
     const files = req.files as Express.Multer.File[]
 
     console.log(`Using AI Provider: ${AI_PROVIDER}`)
@@ -154,41 +162,43 @@ app.post("/api/chat", upload.array("files"), async (req, res) => {
     res.setHeader("Connection", "keep-alive")
 
     try {
-      // If Grok is selected but we're in fallback mode, use OpenAI instead
-      if (AI_PROVIDER === "grok" && process.env.FALLBACK_TO_OPENAI === "true") {
-        console.log("Falling back to OpenAI from Grok")
-        const openaiService = new OpenAIService(process.env.OPENAI_API_KEY || "")
-        const stream = await openaiService.createChatCompletion(apiMessages)
+      console.log(`Using ${AI_PROVIDER} for this request`)
+      const stream = await aiService.createChatCompletion(apiMessages)
 
-        // Stream the response
-        for await (const chunk of stream) {
-          const content = openaiService.extractContentFromChunk(chunk)
-          if (content) {
-            res.write(`data: ${JSON.stringify({ content })}\n\n`)
-          }
+      // Stream the response
+      let chunkCount = 0
+      let fullResponse = ""
+      const chunks: string[] = []
+      for await (const chunk of stream) {
+        chunkCount++
+        const content = aiService.extractContentFromChunk(chunk)
+        if (content) {
+          fullResponse += content
+          console.log(`Chunk ${chunkCount} content:`, content)
+          chunks.push(content)
         }
-      } else {
-        // Use the selected provider
-        console.log(`Using ${AI_PROVIDER} for this request`)
-        const stream = await aiService.createChatCompletion(apiMessages)
-
-        // Stream the response
-        let chunkCount = 0
-        for await (const chunk of stream) {
-          chunkCount++
-          if (chunkCount % 10 === 0) {
-            console.log(`Received ${chunkCount} chunks from ${AI_PROVIDER}`)
-          }
-
-          const content = aiService.extractContentFromChunk(chunk)
-          if (content) {
-            res.write(`data: ${JSON.stringify({ content })}\n\n`)
-          }
-        }
-        console.log(`Total chunks received: ${chunkCount}`)
       }
+      console.log(`Total chunks received: ${chunkCount}`)
+      console.log("Full response:", fullResponse)
 
-      res.write("data: [DONE]\n\n")
+      // Send the complete response as a single message
+      const message = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: fullResponse,
+        createdAt: new Date().toISOString(),
+        parts: [
+          {
+            type: "text",
+            text: fullResponse
+          }
+        ]
+      };
+      // Ensure proper SSE format with double newlines
+      const messageStr = `data: ${JSON.stringify(message)}\n\n`;
+      console.log("Sending message:", messageStr);
+      res.write(messageStr);
+      res.write("data: [DONE]\n\n");
     } catch (error: any) {
       console.error(`Error from ${AI_PROVIDER} API:`, error)
       console.error(`Error stack:`, error.stack)
@@ -240,4 +250,5 @@ app.get("/health", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT} using ${AI_PROVIDER} provider`)
   console.log(`Maximum file size: ${(MAX_FILE_SIZE / (1024 * 1024)).toFixed(2)} MB`)
+  console.log(`CORS enabled for: ${frontendUrl}`)
 })

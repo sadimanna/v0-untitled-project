@@ -3,7 +3,7 @@ import OpenAI from "openai"
 
 export class GrokService implements AIServiceInterface {
   private client: OpenAI
-  private model = "grok-2-1212" // Default model
+  private model = "grok-2-vision-latest" // Default model
 
   constructor(apiKey: string, model?: string) {
     this.client = new OpenAI({
@@ -53,6 +53,7 @@ export class GrokService implements AIServiceInterface {
         }
       }
 
+      // For regular messages without attachments
       return {
         role: msg.role,
         content: msg.content,
@@ -72,7 +73,7 @@ export class GrokService implements AIServiceInterface {
 
   extractContentFromChunk(chunk: any): string | null {
     // Extract content from Grok API response chunk
-    return chunk.choices?.[0]?.delta?.content || null
+    return chunk.choices[0]?.delta?.content || ""
   }
 
   getSystemPrompt(): string {
