@@ -3,10 +3,20 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { FileText, FileSpreadsheet } from "lucide-react";
 import Image from "next/image";
+import { useEffect } from "react";
 
 interface MessageListProps {
   messages: Message[];
 }
+
+// interface ContentItem {
+//   type: "text" | "image_url";
+//   text?: string;
+//   image_url?: {
+//     url: string;
+//     detail: string;
+//   };
+// }
 
 interface Attachment {
   contentType?: string;
@@ -15,23 +25,8 @@ interface Attachment {
 }
 
 const AttachmentComponent = ({ attachment }: { attachment: Attachment }) => {
-  if (attachment.contentType.startsWith("image/")) {
-    // console.log("############# Got Image #############", attachment.url)
+  if (attachment.contentType?.startsWith("image/")) {
     return (
-      // <div className="relative h-48 w-full rounded-md overflow-hidden">
-      //   <Image
-      //     src={attachment.url || "/placeholder.svg"}
-      //     alt={`Attached image`}
-      //     fill
-      //     className="object-contain"
-      //     onError={(e) => {
-      //       console.error("Image failed to load:", attachment.url);
-      //       // Fallback to placeholder if image fails to load
-      //       (e.target as HTMLImageElement).src = "/placeholder.svg";
-      //     }}
-      //     unoptimized // Add this to bypass Next.js image optimization which might be causing issues
-      //   />
-      // </div>
       <div className="relative h-full w-48 rounded-md overflow-hidden">
         <img src={attachment.url || "/placeholder.svg"} alt="Image" className="object-contain" />
       </div>
@@ -84,13 +79,19 @@ const AttachmentComponent = ({ attachment }: { attachment: Attachment }) => {
 };
 
 export function MessageList({ messages }: MessageListProps) {
+  // Log when messages prop changes
+  useEffect(() => {
+    console.log("[MessageList] Received messages prop:", messages);
+  }, [messages]);
+
   if (messages.length === 0) {
+    console.log("[MessageList] No messages, showing welcome screen");
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
           <FileText className="h-8 w-8 text-blue-600" />
         </div>
-        <h3 className="text-xl font-medium text-blue-800 mb-2">Welcome to MediAssist AI</h3>
+        <h3 className="text-xl font-medium text-blue-800 mb-2">Hi! I am Dr. Smart</h3>
         <p className="text-gray-600 max-w-md">
           I can help answer your medical questions and analyze your health documents. Upload images, PDFs, or CSV files
           to get started.
@@ -103,11 +104,29 @@ export function MessageList({ messages }: MessageListProps) {
     <div className="space-y-4 py-4">
       {messages.map((message) => {
         // Log each message to debug
-        console.log("Rendering message:", message.id, message.role, message.content, message.experimental_attachments);
+        console.log("Rendering message:", {
+          id: message.id,
+          role: message.role,
+          content: message.content,
+          attachments: message.experimental_attachments?.map(att => ({
+            type: att.contentType,
+            name: att.name,
+            url: att.url
+          }))
+        });
 
         // Check if this is a file-only message (content is empty or just whitespace)
         const isFileOnlyMessage = !message.content || message.content.trim() === "";
-        const hasAttachments = message.experimental_attachments && message.experimental_attachments.length > 0;
+        const hasAttachments = Array.isArray(message.experimental_attachments) && message.experimental_attachments.length > 0;
+        console.log("[MessageList] Message flags:", { 
+          isFileOnlyMessage, 
+          hasAttachments,
+          attachments: message.experimental_attachments?.map(att => ({
+            type: att.contentType,
+            name: att.name,
+            url: att.url
+          }))
+        });
 
         return (
           <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
@@ -129,7 +148,7 @@ export function MessageList({ messages }: MessageListProps) {
                     <div className="whitespace-pre-wrap text-sm">{message.content}</div>
                   )}
 
-                  {hasAttachments && (
+                  {hasAttachments && message.experimental_attachments && (
                     <div className="space-y-2">
                       {message.experimental_attachments.map((attachment, index) => (
                         <AttachmentComponent key={index} attachment={attachment} />

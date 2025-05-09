@@ -25,9 +25,52 @@ export default function Home() {
   const { messages, input, handleInputChange, handleSubmit, isLoading, setInput } = useChat({
     api: "/api/chat",
     id: "medical-assistant",
-    // This prevents the API from being called on every keystroke
-    mode: "manual",
+    streamProtocol: "text",
+    onResponse: (response) => {
+      console.log("Chat response received:", response);
+      // Log the current messages state
+      console.log("Current messages:", messages); //.length);
+    },
+    onFinish: (message) => {
+      console.log("Chat message finished:", message);
+      // Log the final message state
+      console.log("Final messages:", messages);
+    },
+    onError: (error) => {
+      console.error("Chat error:", error);
+      // Log the error and current state
+      console.error("Error details:", {
+        error,
+        currentMessages: messages,
+        isLoading
+      });
+    },
+    body: {
+      // Add any additional body parameters here
+    },
+    // mode: "streaming",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive"
+    },
+    initialMessages: [],
   })
+
+  // console.log("####### Messages Received: ########", messages);
+
+  // Add effect to log messages changes
+  useEffect(() => {
+    console.log("Messages updated:", messages);
+  }, [messages]);
+
+  // Add effect to handle scroll to bottom
+  useEffect(() => {
+    if (chatAreaRef.current) {
+      chatAreaRef.current.scrollTop = chatAreaRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -46,20 +89,15 @@ export default function Home() {
     if (!input.trim() && files && files.length > 0) {
       // Set a non-visible placeholder for file-only messages
       currentInput = " " // Space character that won't be visible but ensures message creation
-
-      // Alternative approach: explicitly set a placeholder text
-      // currentInput = `[File${files.length > 1 ? 's' : ''} uploaded]`;
     }
 
     // Submit the form with files and/or text
     handleSubmit(e, {
       experimental_attachments: filesToSend || undefined,
-      // options: {
       body: {
         // Override the input with our modified version
         input: currentInput,
       },
-      // },
       allowEmptySubmit: true,
     })
 
@@ -102,7 +140,7 @@ export default function Home() {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001"
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3002"
         const response = await fetch(`${backendUrl}/api/config`)
         const data = await response.json()
         setMaxFileSize(`${data.maxFileSizeMB} MB`)
@@ -123,7 +161,7 @@ export default function Home() {
               <AvatarImage src="/placeholder.svg?height=40&width=40" alt="MediBot" />
               <AvatarFallback>MB</AvatarFallback>
             </Avatar>
-            <h1 className="text-2xl font-bold text-blue-800">MediAssist AI</h1>
+            <h1 className="text-2xl font-bold text-blue-800">Dr. Smart</h1>
           </div>
         </header>
 
